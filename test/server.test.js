@@ -3,7 +3,12 @@ import assert from "node:assert/strict";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
 import { ErrorCode, McpError } from "@modelcontextprotocol/sdk/types.js";
-import { buildCommandArgs, createServer, runCommand } from "../index.js";
+import {
+  buildCommandArgs,
+  createServer,
+  runCommand,
+  redactSensitiveInfo,
+} from "../index.js";
 
 describe("buildCommandArgs", () => {
   describe("gws_command", () => {
@@ -134,6 +139,32 @@ describe("buildCommandArgs", () => {
       ]);
     });
 
+    it("should reject file paths with null bytes or control characters", () => {
+      assert.throws(
+        () =>
+          buildCommandArgs("gws_command", {
+            service: "drive",
+            resource: "files",
+            method: "create",
+            upload: "/tmp/exploit\0.pdf",
+          }),
+        (err) =>
+          err instanceof McpError && err.code === ErrorCode.InvalidParams,
+      );
+
+      assert.throws(
+        () =>
+          buildCommandArgs("gws_command", {
+            service: "drive",
+            resource: "files",
+            method: "create",
+            download: "/tmp/exploit\x08.pdf",
+          }),
+        (err) =>
+          err instanceof McpError && err.code === ErrorCode.InvalidParams,
+      );
+    });
+
     it("should throw InvalidParams when missing required fields", () => {
       assert.throws(
         () =>
@@ -224,6 +255,39 @@ describe("buildCommandArgs", () => {
   });
 });
 
+describe("redactSensitiveInfo", () => {
+  it("should redact Google OAuth tokens (ya29.*)", () => {
+    const token = ["ya29", "mock_oauth_token_12345"].join(".");
+    const raw = `Authenticated with token: ${token}`;
+    const redacted = redactSensitiveInfo(raw);
+    assert.equal(redacted, "Authenticated with token: [REDACTED_OAUTH_TOKEN]");
+  });
+
+  it("should redact Google API keys (AIza...)", () => {
+    const key = "AI" + "zaSyD1234567890abcdef1234567890abcdef";
+    const raw = `Using API Key: ${key}`;
+    const redacted = redactSensitiveInfo(raw);
+    assert.equal(redacted, "Using API Key: [REDACTED_API_KEY]");
+  });
+
+  it("should redact Bearer authorization headers", () => {
+    const raw =
+      '{"error": "Failed", "authorization": "Bearer secret_token_12345"}';
+    const redacted = redactSensitiveInfo(raw);
+    assert.equal(
+      redacted,
+      '{"error": "Failed", "authorization": "Bearer [REDACTED_TOKEN]"}',
+    );
+  });
+
+  it("should redact Private Key blocks", () => {
+    const raw =
+      "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA...\n-----END RSA PRIVATE KEY-----";
+    const redacted = redactSensitiveInfo(raw);
+    assert.equal(redacted, "[REDACTED_PRIVATE_KEY]");
+  });
+});
+
 describe("MCP Server Integration (InMemoryTransport)", () => {
   it("should list all available tools and their schemas", async () => {
     const server = createServer();
@@ -250,10 +314,14 @@ describe("MCP Server Integration (InMemoryTransport)", () => {
     await server.close();
   });
 
-  it("should successfully execute tool calls with mock runner", async () => {
+  it("should successfully execute tool calls with mock runner and redact tokens", async () => {
+    const mockToken = ["ya29", "mock_oauth_secret_token"].join(".");
+    const mockKey = "AI" + "zaSyABCDE1234567890123456789012345678";
     const mockOutput = JSON.stringify({
       status: "authenticated",
       email: "user@example.com",
+      token: mockToken,
+      apiKey: mockKey,
       scopes: ["https://www.googleapis.com/auth/drive.readonly"],
     });
 
@@ -289,7 +357,9 @@ describe("MCP Server Integration (InMemoryTransport)", () => {
       "--format",
       "json",
     ]);
-    assert.equal(result.content[0].text, mockOutput);
+    assert.ok(result.content[0].text.includes("[REDACTED_OAUTH_TOKEN]"));
+    assert.ok(result.content[0].text.includes("[REDACTED_API_KEY]"));
+    assert.ok(!result.content[0].text.includes(mockToken));
     assert.equal(result.isError, undefined);
 
     await client.close();
