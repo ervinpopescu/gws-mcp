@@ -20,6 +20,56 @@ const ENDPOINT_REGEX =
   /^[a-zA-Z0-9]+(?:\.[a-zA-Z0-9_-]+)*(?:\+[a-zA-Z0-9_-]+)?$/;
 
 /**
+ * Validates a file path parameter against null bytes and control characters.
+ *
+ * @param {string} paramName
+ * @param {any} filePath
+ */
+function validateFilePath(paramName, filePath) {
+  if (typeof filePath !== "string" || filePath.trim().length === 0) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `'${paramName}' must be a non-empty file path string.`,
+    );
+  }
+  if (/[\x00-\x1f\x7f]/.test(filePath)) {
+    throw new McpError(
+      ErrorCode.InvalidParams,
+      `'${paramName}' contains invalid control characters or null bytes.`,
+    );
+  }
+}
+
+/**
+ * Redacts sensitive tokens (OAuth access tokens, API keys, private keys, auth headers)
+ * from text output to prevent accidental credential leakage into LLM context.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function redactSensitiveInfo(text) {
+  if (typeof text !== "string" || !text) return text;
+
+  return (
+    text
+      // Google OAuth access tokens (ya29.*)
+      .replace(/ya29\.[a-zA-Z0-9_-]+/g, "[REDACTED_OAUTH_TOKEN]")
+      // Google API keys (AIzaSy...)
+      .replace(/AIza[0-9A-Za-z-_]{35}/g, "[REDACTED_API_KEY]")
+      // Bearer authorization tokens in header or JSON formats
+      .replace(
+        /((?:Bearer\s+|"authorization":\s*"Bearer\s+))([a-zA-Z0-9_\-.~+/=]+)/gi,
+        "$1[REDACTED_TOKEN]",
+      )
+      // Private keys
+      .replace(
+        /-----BEGIN [A-Z ]+ PRIVATE KEY-----[\s\S]*?-----END [A-Z ]+ PRIVATE KEY-----/g,
+        "[REDACTED_PRIVATE_KEY]",
+      )
+  );
+}
+
+/**
  * Builds the command-line arguments array for the `gws` CLI.
  * Validates inputs against flag/argument injection.
  *
@@ -179,22 +229,12 @@ export function buildCommandArgs(toolName, args = {}) {
     if (sanitize === true) {
       cmdArgs.push("--sanitize");
     }
-    if (upload) {
-      if (typeof upload !== "string") {
-        throw new McpError(
-          ErrorCode.InvalidParams,
-          "'upload' must be a file path string.",
-        );
-      }
+    if (upload !== undefined && upload !== null) {
+      validateFilePath("upload", upload);
       cmdArgs.push("--upload", upload);
     }
-    if (download) {
-      if (typeof download !== "string") {
-        throw new McpError(
-          ErrorCode.InvalidParams,
-          "'download' must be a file path string.",
-        );
-      }
+    if (download !== undefined && download !== null) {
+      validateFilePath("download", download);
       cmdArgs.push("--download", download);
     }
 
@@ -268,10 +308,10 @@ export const runCommand = async (cmd, args, options = {}) => {
               const killTimer = setTimeout(() => {
                 try {
                   proc.kill("SIGKILL");
-                } catch (_) {}
+                } catch {}
               }, 2000);
               if (killTimer.unref) killTimer.unref();
-            } catch (_) {}
+            } catch {}
           }, timeoutMs)
         : null;
 
@@ -504,8 +544,8 @@ export function createServer(options = {}) {
     try {
       const cmdArgs = buildCommandArgs(name, args);
       const { stdout, stderr } = await runner("gws", cmdArgs);
-      const resultText =
-        stdout.trim() || stderr.trim() || "Success (no output)";
+      const rawText = stdout.trim() || stderr.trim() || "Success (no output)";
+      const resultText = redactSensitiveInfo(rawText);
       return {
         content: [
           {
@@ -522,7 +562,7 @@ export function createServer(options = {}) {
         content: [
           {
             type: "text",
-            text: err.message || String(err),
+            text: redactSensitiveInfo(err.message || String(err)),
           },
         ],
         isError: true,
@@ -543,7 +583,7 @@ export async function startServer() {
   const shutdown = async () => {
     try {
       await server.close();
-    } catch (_) {}
+    } catch {}
     process.exit(0);
   };
 
