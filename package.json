@@ -1,15 +1,47 @@
 {
-  "name": "gws-mcp",
+  "name": "@ervinpopescu/gws-mcp",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "description": "Model Context Protocol (MCP) server wrapping the Google Workspace CLI (gws)",
   "type": "module",
+  "main": "index.js",
+  "bin": {
+    "gws-mcp": "./index.js"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "scripts": {
+    "test": "node --test test/**/*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ervinpopescu/gws-mcp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/ervinpopescu/gws-mcp/issues"
+  },
+  "homepage": "https://github.com/ervinpopescu/gws-mcp#readme",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "google-workspace",
+    "gws",
+    "gmail",
+    "google-drive",
+    "google-docs",
+    "google-sheets",
+    "google-calendar"
+  ],
+  "author": "Adrian Popescu",
+  "license": "Apache-2.0",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0"
   }
