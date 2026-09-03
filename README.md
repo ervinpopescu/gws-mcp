@@ -197,4 +197,4 @@ npm test
 
 ## License
 
-[Apache License 2.0](LICENSE) © 2025-2026 Adrian Popescu
+[Apache License 2.0](LICENSE) © 2026 Ervin Popescu
