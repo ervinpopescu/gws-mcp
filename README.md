@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/ervinpopescu/gws-mcp/actions/workflows/ci.yml/badge.svg)](https://github.com/ervinpopescu/gws-mcp/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/@ervinpopescu/gws-mcp.svg)](https://www.npmjs.com/package/@ervinpopescu/gws-mcp)
-[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
 
 A lightweight, robust [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server wrapping the [Google Workspace CLI (`gws`)](https://github.com/googleworkspace/cli). It gives LLMs and AI agents (Claude Desktop, Cursor, Pi, VS Code, Goose) dynamic access to all Google Workspace APIs (Drive, Gmail, Docs, Sheets, Calendar, Admin, and more).
 
@@ -197,4 +197,4 @@ npm test
 
 ## License
 
-[Apache License 2.0](LICENSE) © 2026 Ervin Popescu
+[GNU General Public License v3.0](LICENSE) © 2026 Ervin Popescu
