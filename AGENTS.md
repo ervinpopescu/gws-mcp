@@ -8,9 +8,8 @@ This directory contains `gws-mcp`, a Model Context Protocol (MCP) server wrappin
 - `package.json`: Contains the dependencies. Note that `"type": "module"` is required because the MCP SDK is ESM-only.
 
 ## How it works
-The server exposes two tools:
-1. `gws_command`: Translates JSON parameters into `gws` CLI arguments (e.g., `--params`, `--json`, `--page-all`). It parses stdout/stderr and returns it as a text block to the LLM.
-2. `gws_schema`: Runs `gws schema <endpoint>` to help the LLM discover available fields and methods dynamically.
+The server exposes three tools: `gws_command`, `gws_schema`, and `gws_auth_status`.
+See `README.md` for the authoritative tool descriptions and configuration examples.
 
 ## Future Development
 If you are an agent modifying this repository:
